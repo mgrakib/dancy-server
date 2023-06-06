@@ -35,15 +35,17 @@ async function run() {
 
         // user sing in 
         app.post('/users', async (req, res) => {
-            const email = req.body.email;
-            const query = { email: email };
-            const result = await userCollection.findOne(query)
-            if (result) {
-                 res.send('Already have')
-            } 
-            
-			const newUser = await userCollection.insertOne(email);
-			res.send(newUser);  
+            const saveUser = req.body;
+
+			const query = { email: saveUser.email };
+
+			const existUser = await userCollection.findOne(query);
+
+			if (existUser) {
+				return res.send({});
+			}
+			const result = await userCollection.insertOne(saveUser);
+			res.send(result);
         })
 
 
