@@ -36,11 +36,8 @@ async function run() {
         // user sing in 
         app.post('/users', async (req, res) => {
             const saveUser = req.body;
-
 			const query = { email: saveUser.email };
-
 			const existUser = await userCollection.findOne(query);
-
 			if (existUser) {
 				return res.send({});
 			}
