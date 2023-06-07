@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -31,10 +31,20 @@ async function run() {
         await client.connect();
         
         const userCollection = client.db("summerCamp").collection("users");
+        const classCollection = client.db("summerCamp").collection("classes");
+        const instructorCollection = client
+			.db("summerCamp")
+			.collection("instructor");
 
 
-        // user sing in 
-        app.post('/users', async (req, res) => {
+        // user sing in
+
+		app.get('/get-all-user', async (req, res) => {
+			const result = await userCollection.find().toArray();
+			res.send(result)
+		})
+        // store new user 
+		app.post('/users', async (req, res) => {
             const saveUser = req.body;
 			const query = { email: saveUser.email };
 			const existUser = await userCollection.findOne(query);
@@ -46,6 +56,59 @@ async function run() {
         })
 
 
+		// update user role 
+		app.put('/update-user-role', async (req, res) => {
+			const user = req.body;
+			
+			const filter = { email: user?.email };
+			const options = { upsert: true };
+			const updateDoc = {
+				$set: {
+					role: user?.role
+				}
+			}
+
+			const result = await userCollection.updateOne(filter, updateDoc, options);
+
+			res.send(result);
+		})
+
+
+
+		// getclass 
+		app.get('/classes', async (req, res) => {
+			const result = await classCollection.find().toArray();
+			res.send(result)
+		})
+
+		// update Class status 
+		app.put('/update-class-status', async (req, res) => {
+			const body = req.body;
+			const id = req?.body?.id;
+			const feedBack = req?.body?.feedBack;
+			const statusValue = req?.body?.status;
+			let updateValue = {status:  statusValue};
+			if (feedBack) {
+				updateValue.feedBack = feedBack;
+			}
+
+			
+			const filter = { _id: new ObjectId(id) }
+			 const options = { upsert: true };
+			const updateDoc = {
+				$set: updateValue,
+			};
+			const result = await classCollection.updateOne(filter, updateDoc, options);
+
+			res.send({});
+		} )
+
+
+		// getinstructor
+		app.get("/instructor", async (req, res) => {
+			const result = await instructorCollection.find().toArray();
+			res.send(result)
+		});
 
 
 		// Send a ping to confirm a successful connection
