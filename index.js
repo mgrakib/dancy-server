@@ -36,9 +36,19 @@ async function run() {
 			.db("summerCamp")
 			.collection("instructor");
 
+		// get user role 
+		app.get('/user-role', async (req, res) => {
+			const email = req?.body?.email;
+			const query = { email: email };
 
+			// const result = await userCollection.findOne(query);
+
+			console.log(email, query)
+			res.send({})
+		})
+		
+		
         // user sing in
-
 		app.get('/get-all-user', async (req, res) => {
 			const result = await userCollection.find().toArray();
 			res.send(result)
@@ -91,8 +101,6 @@ async function run() {
 			if (feedBack) {
 				updateValue.feedBack = feedBack;
 			}
-
-			
 			const filter = { _id: new ObjectId(id) }
 			 const options = { upsert: true };
 			const updateDoc = {
