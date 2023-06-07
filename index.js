@@ -38,12 +38,17 @@ async function run() {
 
 		// get user role 
 		app.get('/user-role', async (req, res) => {
-			const email = req?.body?.email;
+			const email = req.query.email;
 			const query = { email: email };
 
-			// const result = await userCollection.findOne(query);
-
-			console.log(email, query)
+			const result = await userCollection.findOne(query);
+			
+			if (result?.role === "admin") {
+				return res.send("admin");
+			} else if (result?.role === "instractor") {
+				return res.send("instractor");
+			}
+			
 			res.send({})
 		})
 		
