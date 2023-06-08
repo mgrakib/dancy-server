@@ -141,6 +141,7 @@ async function run() {
 			res.send({});
 		} )
 
+		//  add to cart class for user 
 		app.post('/class-add-to-cart', async (req, res) => {
 			const cartClass = req.body;
 			const studentEmail = req.body.studentEmail;
@@ -159,6 +160,22 @@ async function run() {
 			
 			res.send(result);
 		})
+
+		// get all cart class by login user
+		app.get('/cart-classes', async (req, res) => {
+			const email = req.query.email;
+			const query = { studentEmail : email};
+			const result = await classCartCollection.find(query).toArray();
+			res.send(result);
+		})
+
+		app.delete('/delete-cart-class/:id', async (req, res) => {
+			const id = req.params.id;
+			const query = { _id: new ObjectId(id) };
+			const result =  await classCartCollection.deleteOne(query)
+
+			res.send(result);
+		} )
 
 		// getinstructor
 		app.get("/instructor", async (req, res) => {
