@@ -195,7 +195,7 @@ async function run() {
 			const { price } = req.body;
 			
 			const amount = parseInt(price * 100);
-			
+			console.log(price, amount , ' ga');
 			const paymentIntent = await stripe.paymentIntents.create({
 				amount: amount,
 				currency: "usd",
@@ -210,7 +210,55 @@ async function run() {
 
 		app.post('/payments', async (req, res) => {
 			const payment = req.body;
+
+			
 			const result = await paymentCartCollection.insertOne(payment);
+			const query = {
+				_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
+			};
+			const deleteResult = await classCartCollection.deleteMany(query);
+
+			const filter = {
+				_id: { $in: payment.classId.map(id => new ObjectId(id)) },
+			};
+
+			const getData = await classCollection.find(filter).toArray();
+			console.log(getData)
+
+			for (const update of getData) {
+				const { totalStudent, _id, availableSeats } = update;
+
+				 await classCollection.updateOne(
+						{ _id:  _id },
+						{
+							$set: {
+								totalStudent: totalStudent + 1,
+								availableSeats: availableSeats -1,
+							},
+						}
+					);
+
+				console.log(`TotalStudent field updated for class ${_id}.`);
+				console.log(totalStudent+1, _id, availableSeats -1 )
+			}
+
+			
+			// const updateDoc = {
+			// 	$set: { $in: getData.map(sc => { return totalStudent = sc.totalStudent + 1 })}
+			// }
+
+			// const updateDoc = {
+			// 	$set: {
+			// 		totalStudent: 1
+			// 	},
+			// };
+
+			// const updateTotalSit = await classCollection.updateMany(filter, updateDoc);
+			
+
+			// console.log(getData, updateDoc);
+
+			
 			res.send(result)
 		})
 
