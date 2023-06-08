@@ -35,6 +35,9 @@ async function run() {
         const instructorCollection = client
 			.db("summerCamp")
 			.collection("instructor");
+        const classCartCollection = client
+			.db("summerCamp")
+			.collection("classCart");
 
 		// get user role 
 		app.get('/user-role', async (req, res) => {
@@ -53,7 +56,7 @@ async function run() {
 		})
 		
 		
-        // user sing in
+        // get all user
 		app.get('/get-all-user', async (req, res) => {
 			const result = await userCollection.find().toArray();
 			res.send(result)
@@ -89,14 +92,36 @@ async function run() {
 		})
 
 
+		// get classes for user 
+		app.get('/approverd-classes', async (req, res) => {
+			const query = { status: { $eq: 'approved' }};			
+			const resutl = await classCollection.find(query).toArray();
+			res.send(resutl);
+		})
 
-		// getclass 
+		// getclass for admin 
 		app.get('/classes', async (req, res) => {
 			const result = await classCollection.find().toArray();
 			res.send(result)
 		})
 
-		// update Class status 
+		// get Class for instructor 
+		app.get('/instructor-classes', async (req, res) => {
+			const email = req.query.email;
+			const query = { instructorEmail: email };
+			const cursor = await classCollection.find(query).toArray();
+			res.send(cursor);
+		})
+
+
+		// add new class by instractor
+		app.post('/add-an-class', async (req, res) => {
+			const classInfo = req.body;
+			const result = await classCollection.insertOne(classInfo);
+			res.send(result);
+		})
+
+		// update Class status by admibn
 		app.put('/update-class-status', async (req, res) => {
 			const body = req.body;
 			const id = req?.body?.id;
@@ -116,6 +141,24 @@ async function run() {
 			res.send({});
 		} )
 
+		app.post('/class-add-to-cart', async (req, res) => {
+			const cartClass = req.body;
+			const studentEmail = req.body.studentEmail;
+			const classId = req.body.classId;
+			const query = { classId, studentEmail };
+
+			const isExist = await classCartCollection.findOne(query);
+
+			if (isExist) {
+				console.log(isExist);
+				return res.send({message: 'already added'})
+			}
+
+			const result = await classCartCollection.insertOne(cartClass);
+			console.log(result);
+			
+			res.send(result);
+		})
 
 		// getinstructor
 		app.get("/instructor", async (req, res) => {
