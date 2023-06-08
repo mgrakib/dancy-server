@@ -237,28 +237,8 @@ async function run() {
 							},
 						}
 					);
-
-				console.log(`TotalStudent field updated for class ${_id}.`);
-				console.log(totalStudent+1, _id, availableSeats -1 )
 			}
 
-			
-			// const updateDoc = {
-			// 	$set: { $in: getData.map(sc => { return totalStudent = sc.totalStudent + 1 })}
-			// }
-
-			// const updateDoc = {
-			// 	$set: {
-			// 		totalStudent: 1
-			// 	},
-			// };
-
-			// const updateTotalSit = await classCollection.updateMany(filter, updateDoc);
-			
-
-			// console.log(getData, updateDoc);
-
-			
 			res.send(result)
 		})
 
