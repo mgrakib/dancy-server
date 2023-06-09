@@ -197,6 +197,52 @@ async function run() {
 			res.send(result);
 		});
 
+
+		app.post('/make-instructor/:email', async (req, res) => {
+			const userEmail = req.params.email;
+			const query = { email: userEmail };
+			const user = await userCollection.findOne(query);
+			const { _id, email, userImg, name} = user;
+			const instructorInfo = {
+				userId: _id,
+				email,
+				userImg,
+				joiningDate: new Date(),
+				name
+			};
+			const result = await instructorCollection.insertOne(instructorInfo);
+			res.send(result);
+		})
+
+		app.put('/update-instructor-info', async (req, res) => {
+			const body = req.body;
+			const instractorEmail = body?.email;
+			const className = body?.name;
+			const filter = { email: instractorEmail };
+			const options = { upsert: true };
+			const instractor = await instructorCollection.findOne({ email: instractorEmail });
+			const previousClasss = instractor?.className;
+
+
+			let updateDoc;
+			if (previousClasss) {
+				updateDoc = {
+					$set: {
+						className: [className, ...previousClasss],
+					},
+				};
+			} else {
+				updateDoc = {
+					$set: {
+						className: [className],
+					},
+				};
+			}
+
+			const result = await instructorCollection.updateOne(filter, updateDoc, options);
+		
+			res.send(result);
+		})
 		// get instructor
 		app.get("/instructor", async (req, res) => {
 			const numberOfData = req?.query?.numberOfData;
