@@ -100,8 +100,16 @@ async function run() {
 
 		// get classes for user
 		app.get("/approverd-classes", async (req, res) => {
+			const numberOfData = req.query.numberOfData;
+			const sortValue = req.query.sort;
+			
 			const query = { status: { $eq: "approved" } };
-			const resutl = await classCollection.find(query).toArray();
+			const resutl = await classCollection
+				.find(query).limit(parseInt(numberOfData))
+				.sort({ totalStudent: sortValue })
+				.toArray();
+			
+			console.log(resutl)
 			res.send(resutl);
 		});
 
@@ -195,7 +203,6 @@ async function run() {
 			const { price } = req.body;
 			
 			const amount = parseInt(price * 100);
-			console.log(price, amount , ' ga');
 			const paymentIntent = await stripe.paymentIntents.create({
 				amount: amount,
 				currency: "usd",
@@ -223,7 +230,6 @@ async function run() {
 			};
 
 			const getData = await classCollection.find(filter).toArray();
-			console.log(getData)
 
 			for (const update of getData) {
 				const { totalStudent, _id, availableSeats } = update;
