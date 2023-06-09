@@ -281,35 +281,42 @@ async function run() {
 
 		app.post('/payments', async (req, res) => {
 			const payment = req.body;
-
-			
 			const result = await paymentCartCollection.insertOne(payment);
-			const query = {
-				_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
-			};
+
+			// const query = {
+			// 	_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
+			// };
+
+			const query = { _id: new ObjectId(payment.cartClassesId) };
 			const deleteResult = await classCartCollection.deleteMany(query);
 
 			const filter = {
-				_id: { $in: payment.classId.map(id => new ObjectId(id)) },
+				_id: new ObjectId(payment.classId),
 			};
+			const getData = await classCollection.findOne(filter);
+			console.log(filter, getData);
 
-			const getData = await classCollection.find(filter).toArray();
+			// const filter = {
+			// 	_id: { $in: payment.classId.map(id => new ObjectId(id)) },
+			// };
 
-			for (const update of getData) {
-				const { totalStudent, _id, availableSeats } = update;
+			// const getData = await classCollection.find(filter).toArray();
 
-				 await classCollection.updateOne(
-						{ _id:  _id },
-						{
-							$set: {
-								totalStudent: totalStudent + 1,
-								availableSeats: availableSeats -1,
-							},
-						}
-					);
-			}
+			// for (const update of getData) {
+			// 	const { totalStudent, _id, availableSeats } = update;
 
-			res.send(result)
+			// 	 await classCollection.updateOne(
+			// 			{ _id:  _id },
+			// 			{
+			// 				$set: {
+			// 					totalStudent: totalStudent + 1,
+			// 					availableSeats: availableSeats -1,
+			// 				},
+			// 			}
+			// 		);
+			// }
+
+			res.send(result);
 		})
 
 		// Send a ping to confirm a successful connection
