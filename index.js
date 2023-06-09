@@ -100,16 +100,21 @@ async function run() {
 
 		// get classes for user
 		app.get("/approverd-classes", async (req, res) => {
-			const numberOfData = req.query.numberOfData;
-			const sortValue = req.query.sort;
-			
+			const numberOfData = req?.query?.numberOfData;
+			const sortValue = req?.query?.sort;
 			const query = { status: { $eq: "approved" } };
-			const resutl = await classCollection
-				.find(query).limit(parseInt(numberOfData))
-				.sort({ totalStudent: sortValue })
-				.toArray();
+			if (numberOfData !== "undefined" && sortValue !== "undefined") {
+				
+				const resutl = await classCollection
+					.find(query)
+					.limit(parseInt(numberOfData))
+					.sort({ totalStudent: sortValue })
+					.toArray();
+				return res.send(resutl);
+			}
 			
-			console.log(resutl)
+			const resutl = await classCollection.find(query).toArray();
+			
 			res.send(resutl);
 		});
 
@@ -184,19 +189,32 @@ async function run() {
 			res.send(result);
 		});
 
+		// delete class form cart for student 
 		app.delete("/delete-cart-class/:id", async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const result = await classCartCollection.deleteOne(query);
-
 			res.send(result);
 		});
 
-		// getinstructor
+		// get instructor
 		app.get("/instructor", async (req, res) => {
+			const numberOfData = req?.query?.numberOfData;
+			const sortValue = req?.query?.sort;
+
+			if (numberOfData !== "undefined" && sortValue !== "undefined") {
+				const resutl = await instructorCollection
+					.find()
+					.limit(parseInt(numberOfData))
+					.sort({ experience: sortValue })
+					.toArray();
+				return res.send(resutl);
+			}
+
 			const result = await instructorCollection.find().toArray();
 			res.send(result);
 		});
+
 
 		// create payment intent
 		app.post("/create-payment-intent",  async (req, res) => {
