@@ -198,8 +198,8 @@ async function run() {
 			const studentEmail = req.query;
 
 			const query = { studentEmail: studentEmail.email };
-			const result = await enrolledClassesCollection.find(query).toArray();
-			res.send(result)
+			const enrolledResult = await enrolledClassesCollection.find(query).toArray();
+			res.send(enrolledResult);
 		})
 		// delete class form cart for student 
 		app.delete("/delete-cart-class/:id", async (req, res) => {
@@ -394,8 +394,8 @@ async function run() {
 		app.get('/payment-history', async (req, res) => {
 			const studentEmail = req.query.email;
 			const query = { email: studentEmail };
-			const result = await paymentCollection.find(query).toArray();
-			res.send(result)
+			const paymentResult = await paymentCollection.find(query).sort({ date: -1 }).toArray();
+			res.send(paymentResult);
 		})
 
 
