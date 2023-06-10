@@ -12,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 
+// TODO: make change instractor to instructor 
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.nvffntx.mongodb.net/?retryWrites=true&w=majority`;
@@ -40,9 +41,12 @@ async function run() {
 			.db("summerCamp")
 			.collection("classCart");
 		
-		const paymentCartCollection = client
+		const paymentCollection = client
 			.db("summerCamp")
 			.collection("payment");
+		const enrolledClassesCollection = client
+			.db("summerCamp")
+			.collection("enrolledClasses");
 
 		// get user role
 		app.get("/user-role", async (req, res) => {
@@ -189,6 +193,19 @@ async function run() {
 			res.send(result);
 		});
 
+		// get student enrollment classes 
+		app.get('/enrolled-classes', async (req, res) => {
+			const studentEmail = req.query;
+
+			const query = { studentEmail: studentEmail.email };
+
+			
+			console.log(query)
+			const result = await enrolledClassesCollection.find(query).toArray();
+
+			console.log(result)
+			res.send(result)
+		})
 		// delete class form cart for student 
 		app.delete("/delete-cart-class/:id", async (req, res) => {
 			const id = req.params.id;
@@ -198,6 +215,7 @@ async function run() {
 		});
 
 
+		// make user to instracto 
 		app.post('/make-instructor/:email', async (req, res) => {
 			const userEmail = req.params.email;
 			const query = { email: userEmail };
@@ -214,6 +232,7 @@ async function run() {
 			res.send(result);
 		})
 
+		// update instractor info 
 		app.put('/update-instructor-info', async (req, res) => {
 			const body = req.body;
 			const instractorEmail = body?.email;
@@ -243,6 +262,7 @@ async function run() {
 		
 			res.send(result);
 		})
+
 		// get instructor
 		app.get("/instructor", async (req, res) => {
 			const numberOfData = req?.query?.numberOfData;
@@ -260,6 +280,15 @@ async function run() {
 			const result = await instructorCollection.find().toArray();
 			res.send(result);
 		});
+
+		// get instractor class 
+		app.get('/get-instructor-classes/:email', async (req, res) => {
+			const email = req.params.email;
+			const query = { instructorEmail: email, status: "approved" };
+			const result = await classCollection.find(query).toArray();
+			res.send(result);
+		})
+
 
 
 		// create payment intent
@@ -279,21 +308,20 @@ async function run() {
 		});
 
 
+		// payment with update instractor , update student 
 		app.post('/payments', async (req, res) => {
 
 			// payment data set to DB
 			const payment = req.body;
-			const paymentResult = await paymentCartCollection.insertOne(payment);
+			const paymentResult = await paymentCollection.insertOne(payment);
 
-			// const query = {
-			// 	_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
-			// };
+			
 
 			// DELETE from class cart collection 
 			const query = { _id: new ObjectId(payment.cartClassesId) };
 			const deleteResult = await classCartCollection.deleteMany(query);
 
-			// update to class collections 
+			// update to class collections available sets and totalStudent 
 			const filterForCLasses = {
 				_id: new ObjectId(payment.classId),
 			};
@@ -310,7 +338,7 @@ async function run() {
 				}
 			);
 
-			// update instractor 
+			// update instractor to totalEnrolled student
 			const filterForInstractor = {
 				email: payment.instructorEmail,
 			};
@@ -330,8 +358,35 @@ async function run() {
 				}
 			);
 
+			console.log(getClassesData);
 
-			res.send({updateResultClasses, updateResultInstractor});
+			// set enrollment collection 
+			const {
+				classId: _id,
+				name,
+				instructorEmail,
+				instructorName,
+				price,
+				img,
+			} = getClassesData;
+			
+			const enrolledClassInfo = {
+				studentEmail: payment.email,
+				classId,
+				name,
+				instructorEmail,
+				instructorName,
+				price,
+				img,
+			};
+			
+			const enrolledClasssResult = await enrolledClassesCollection.insertOne(enrolledClassInfo)
+			
+			res.send({
+				updateResultClasses,
+				updateResultInstractor,
+				enrolledClasssResult,
+			});
 		})
 
 		// Send a ping to confirm a successful connection
