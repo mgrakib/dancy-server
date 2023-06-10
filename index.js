@@ -364,7 +364,6 @@ async function run() {
 			);
 
 
-			console.log(updateClass ,' update');
 			// set enrollment collection 
 			const {
 				classId: _id,
