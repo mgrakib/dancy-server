@@ -198,12 +198,7 @@ async function run() {
 			const studentEmail = req.query;
 
 			const query = { studentEmail: studentEmail.email };
-
-			
-			console.log(query)
 			const result = await enrolledClassesCollection.find(query).toArray();
-
-			console.log(result)
 			res.send(result)
 		})
 		// delete class form cart for student 
@@ -394,6 +389,15 @@ async function run() {
 				enrolledClasssResult,
 			});
 		})
+
+		// user payment history 
+		app.get('/payment-history', async (req, res) => {
+			const studentEmail = req.query.email;
+			const query = { email: studentEmail };
+			const result = await paymentCollection.find(query).toArray();
+			res.send(result)
+		})
+
 
 		// Send a ping to confirm a successful connection
 		await client.db("admin").command({ ping: 1 });
