@@ -281,7 +281,7 @@ async function run() {
 
 		app.post('/payments', async (req, res) => {
 			const payment = req.body;
-			const result = await paymentCartCollection.insertOne(payment);
+			const paymentResult = await paymentCartCollection.insertOne(payment);
 
 			// const query = {
 			// 	_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
@@ -296,27 +296,19 @@ async function run() {
 			const getData = await classCollection.findOne(filter);
 			console.log(filter, getData);
 
-			// const filter = {
-			// 	_id: { $in: payment.classId.map(id => new ObjectId(id)) },
-			// };
+			const { totalStudent, _id, availableSeats } = getData;
 
-			// const getData = await classCollection.find(filter).toArray();
+			const updateResult =  await classCollection.updateOne(
+				{ _id: _id },
+				{
+					$set: {
+						totalStudent: totalStudent + 1,
+						availableSeats: availableSeats -1
+					}
+				}
+			)
 
-			// for (const update of getData) {
-			// 	const { totalStudent, _id, availableSeats } = update;
-
-			// 	 await classCollection.updateOne(
-			// 			{ _id:  _id },
-			// 			{
-			// 				$set: {
-			// 					totalStudent: totalStudent + 1,
-			// 					availableSeats: availableSeats -1,
-			// 				},
-			// 			}
-			// 		);
-			// }
-
-			res.send(result);
+			res.send(updateResult);
 		})
 
 		// Send a ping to confirm a successful connection
