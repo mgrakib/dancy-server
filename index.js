@@ -347,8 +347,6 @@ async function run() {
 			);
 			const {_id:instructorId, totalEnrolledStudent } = getInstractorData;
 
-			console.log(instructorId, totalEnrolledStudent);
-
 			const updateResultInstractor = await instructorCollection.updateOne(
 				{ _id: instructorId },
 				{
@@ -358,17 +356,25 @@ async function run() {
 				}
 			);
 
-			console.log(getClassesData);
+			const updatedClassFilter = {
+				_id: new ObjectId(payment.classId),
+			};
+			const updateClass = await classCollection.findOne(
+				updatedClassFilter
+			);
 
+
+			console.log(updateClass ,' update');
 			// set enrollment collection 
 			const {
 				classId: _id,
 				name,
 				instructorEmail,
 				instructorName,
+				totalStudent:updatedTotalStudent,
 				price,
 				img,
-			} = getClassesData;
+			} = updateClass;
 			
 			const enrolledClassInfo = {
 				studentEmail: payment.email,
@@ -376,6 +382,7 @@ async function run() {
 				name,
 				instructorEmail,
 				instructorName,
+				totalStudent:updatedTotalStudent,
 				price,
 				img,
 			};
