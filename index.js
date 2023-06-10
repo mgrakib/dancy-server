@@ -252,7 +252,7 @@ async function run() {
 				const resutl = await instructorCollection
 					.find()
 					.limit(parseInt(numberOfData))
-					.sort({ experience: sortValue })
+					.sort({ totalEnrolledStudent: sortValue })
 					.toArray();
 				return res.send(resutl);
 			}
@@ -280,6 +280,8 @@ async function run() {
 
 
 		app.post('/payments', async (req, res) => {
+
+			// payment data set to DB
 			const payment = req.body;
 			const paymentResult = await paymentCartCollection.insertOne(payment);
 
@@ -287,28 +289,49 @@ async function run() {
 			// 	_id: { $in: payment.cartClassesId.map(id => new ObjectId(id)) },
 			// };
 
+			// DELETE from class cart collection 
 			const query = { _id: new ObjectId(payment.cartClassesId) };
 			const deleteResult = await classCartCollection.deleteMany(query);
 
-			const filter = {
+			// update to class collections 
+			const filterForCLasses = {
 				_id: new ObjectId(payment.classId),
 			};
-			const getData = await classCollection.findOne(filter);
-			console.log(filter, getData);
+			const getClassesData = await classCollection.findOne(filterForCLasses);
+			const { totalStudent, _id:classId, availableSeats } = getClassesData;
 
-			const { totalStudent, _id, availableSeats } = getData;
-
-			const updateResult =  await classCollection.updateOne(
-				{ _id: _id },
+			const updateResultClasses = await classCollection.updateOne(
+				{ _id: classId },
 				{
 					$set: {
 						totalStudent: totalStudent + 1,
-						availableSeats: availableSeats -1
-					}
+						availableSeats: availableSeats - 1,
+					},
 				}
-			)
+			);
 
-			res.send(updateResult);
+			// update instractor 
+			const filterForInstractor = {
+				email: payment.instructorEmail,
+			};
+			const getInstractorData = await instructorCollection.findOne(
+				filterForInstractor
+			);
+			const {_id:instructorId, totalEnrolledStudent } = getInstractorData;
+
+			console.log(instructorId, totalEnrolledStudent);
+
+			const updateResultInstractor = await instructorCollection.updateOne(
+				{ _id: instructorId },
+				{
+					$set: {
+						totalEnrolledStudent: totalEnrolledStudent ? totalEnrolledStudent + 1 : 1 ,
+					},
+				}
+			);
+
+
+			res.send({updateResultClasses, updateResultInstractor});
 		})
 
 		// Send a ping to confirm a successful connection
