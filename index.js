@@ -71,6 +71,33 @@ async function run() {
 			.db("summerCamp")
 			.collection("enrolledClasses");
 
+		//*******/ VERIFY ADMIN ********
+		const verifyAdmin = async(req, res, next) => {
+			const email = req.decoded.email;
+			const query = { email: email };
+			const user = await userCollection.findOne(query);
+			if (user?.role !== 'admin') {
+				return res.status(403).send({error:true, message:'Forbidden Access'})
+			}
+			next()
+		}
+
+		//********* VERIFY INSTRUCTOR *********
+		const verifyInstructor = async (req, res, next) => {
+			const email = req.decoded.email;
+			const query = { email: email };
+			const user = await userCollection.findOne(query);
+			if (user?.role !== '') {
+				return res
+					.status(403)
+					.send({ error: true, message: "Forbidden Access" });
+			}
+			next();
+		}
+
+
+
+
 		// ********** COMMON API *************
 
 		// JWT Access Token Genterate
@@ -165,78 +192,95 @@ async function run() {
 
 		// ********** ADMIN API *************
 		// get all user for admin
-		app.get("/get-all-user", verifyJWT, async (req, res) => {
+		app.get("/get-all-user", verifyJWT, verifyAdmin, async (req, res) => {
 			const result = await userCollection.find().toArray();
 			res.send(result);
 		});
 
 		// update user role
-		app.put("/update-user-role", verifyJWT, async (req, res) => {
-			const user = req.body;
+		app.put(
+			"/update-user-role",
+			verifyJWT,
+			verifyAdmin,
+			async (req, res) => {
+				const user = req.body;
 
-			const filter = { email: user?.email };
-			const options = { upsert: true };
-			const updateDoc = {
-				$set: {
-					role: user?.role,
-				},
-			};
+				const filter = { email: user?.email };
+				const options = { upsert: true };
+				const updateDoc = {
+					$set: {
+						role: user?.role,
+					},
+				};
 
-			const result = await userCollection.updateOne(
-				filter,
-				updateDoc,
-				options
-			);
+				const result = await userCollection.updateOne(
+					filter,
+					updateDoc,
+					options
+				);
 
-			res.send(result);
-		});
+				res.send(result);
+			}
+		);
 
 		// make user to instracto FRO AMDIN
-		app.post("/make-instructor/:email", verifyJWT, async (req, res) => {
-			const userEmail = req.params.email;
-			const query = { email: userEmail };
-			const user = await userCollection.findOne(query);
-			const { _id, email, userImg, name } = user;
-			const instructorInfo = {
-				userId: _id,
-				email,
-				userImg,
-				joiningDate: new Date(),
-				name,
-			};
-			const result = await instructorCollection.insertOne(instructorInfo);
-			res.send(result);
-		});
+		app.post(
+			"/make-instructor/:email",
+			verifyJWT,
+			verifyAdmin,
+			async (req, res) => {
+				const userEmail = req.params.email;
+				const query = { email: userEmail };
+				const user = await userCollection.findOne(query);
+				const { _id, email, userImg, name } = user;
+				const instructorInfo = {
+					userId: _id,
+					email,
+					userImg,
+					joiningDate: new Date(),
+					name,
+				};
+				const result = await instructorCollection.insertOne(
+					instructorInfo
+				);
+				res.send(result);
+			}
+		);
 
 		// get all classes approved or not class for admin
-		app.get("/classes", verifyJWT, async (req, res) => {
+		app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
 			const result = await classCollection.find().toArray();
 			res.send(result);
 		});
 
 		// update Class status by admibn
-		app.put("/update-class-status", verifyJWT, async (req, res) => {
-			const body = req.body;
-			const id = req?.body?.id;
-			const feedBack = req?.body?.feedBack;
-			const statusValue = req?.body?.status;
-			let updateValue = { status: statusValue };
-			if (feedBack) {
-				updateValue.feedBack = feedBack;
-			}
-			const filter = { _id: new ObjectId(id) };
-			const options = { upsert: true };
-			const updateDoc = {
-				$set: updateValue,
-			};
-			const result = await classCollection.updateOne(
-				filter,
-				updateDoc,
-				options
-			);
+		app.put(
+			"/update-class-status",
+			verifyJWT,
+			verifyAdmin,
+			async (req, res) => {
+				const body = req.body;
+				const id = req?.body?.id;
+				const feedBack = req?.body?.feedBack;
+				const statusValue = req?.body?.status;
+				let updateValue = { status: statusValue };
+				if (feedBack) {
+					updateValue.feedBack = feedBack;
+				}
+				const filter = { _id: new ObjectId(id) };
+				const options = { upsert: true };
+				const updateDoc = {
+					$set: updateValue,
+				};
+				const result = await classCollection.updateOne(
+					filter,
+					updateDoc,
+					options
+				);
 
-			res.send({});
-		});
+				res.send({});
+			}
+		);
 
 		// update instractor info
 		app.put("/update-instructor-info", async (req, res) => {
@@ -274,7 +318,7 @@ async function run() {
 			res.send(result);
 		});
 
-		
+
 		// ********** INSTRUCTORS API *************
 		// get all  Class for instructor dashboard
 		app.get("/instructor-classes", verifyJWT, async (req, res) => {
