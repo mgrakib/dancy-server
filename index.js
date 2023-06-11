@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 require("dotenv").config();
+const jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = process.env.PORT || 5000;
@@ -12,7 +13,31 @@ app.use(cors());
 app.use(express.json());
 
 
-// TODO: make change instractor to instructor 
+// TODO: make change instractor to instructor
+
+const verifyJWT = (req, res, next) => {
+	const authorization = req.headers.authorization;
+	if (!authorization) {
+		console.log('authorization is invalid')
+		return res
+			.status(401)
+			.send({ error: true, message: " Unauthorized Access"});
+	}
+
+	console.log(authorization, ' if authorization has');
+	const token = authorization.split(' ')[1];
+	console.log(token, ' if authorization has');
+
+	jwt.verify(token, process.env.JWT_ACCESS_TOKEN, (error, decoded) => {
+		if (error) {
+			console.log(token, ' is not valid')
+			return res.status(401).send({error:true, message:'Unauthorized Access'})
+		}
+		req.decoded = decoded;
+		next();
+	});
+	
+}
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.nvffntx.mongodb.net/?retryWrites=true&w=majority`;
@@ -47,6 +72,17 @@ async function run() {
 		const enrolledClassesCollection = client
 			.db("summerCamp")
 			.collection("enrolledClasses");
+
+
+		
+		// JWT Access Token Genterate 
+		app.post('/jwt', async (req, res) => {
+			const body = req.body;
+			const token = jwt.sign(body, process.env.JWT_ACCESS_TOKEN , {expiresIn: '1h'});
+			res.send({ token });
+		})
+
+		
 
 		// get user role
 		app.get("/user-role", async (req, res) => {
@@ -129,12 +165,25 @@ async function run() {
 		});
 
 		// get Class for instructor
-		app.get("/instructor-classes", async (req, res) => {
+		app.get("/instructor-classes", verifyJWT, async (req, res) => {
 			const email = req.query.email;
+
+
+			// check for forbidden access 
+			const decodedEmail = req?.decoded?.email;
+			if (email !== decodedEmail) {
+				console.log('vaul val manus instructor class')
+				return res.status(403).send({error: true, message: 'Forbidden Access'})
+			}
+
+			console.log('instructor class ')
+
 			const query = { instructorEmail: email };
 			const cursor = await classCollection.find(query).toArray();
 			res.send(cursor);
 		});
+
+
 
 		// add new class by instractor
 		app.post("/add-an-class", async (req, res) => {
@@ -185,20 +234,45 @@ async function run() {
 			res.send(result);
 		});
 
+
+
 		// get all cart class by login user
-		app.get("/cart-classes", async (req, res) => {
+		app.get("/cart-classes", verifyJWT, async (req, res) => {
 			const email = req.query.email;
+
+			// check for forbidden access
+			const decodedEmail = req?.decoded?.email;
+			if (email !== decodedEmail) {
+				console.log("vaul val manus cart class");
+				return res
+					.status(403)
+					.send({ error: true, message: "Forbidden Access" });
+			}
+
+			console.log("cart classes after veryfy ..")
 			const query = { studentEmail: email };
 			const result = await classCartCollection.find(query).toArray();
 			res.send(result);
 		});
 
 		// get student enrollment classes 
-		app.get('/enrolled-classes', async (req, res) => {
+		app.get('/enrolled-classes', verifyJWT, async (req, res) => {
 			const studentEmail = req.query;
 
+			// check for forbidden access
+			const decodedEmail = req?.decoded?.email;
+			if (studentEmail.email !== decodedEmail) {
+				console.log("vaul val manus enrolled classs");
+				return res
+					.status(403)
+					.send({ error: true, message: "Forbidden Access" });
+			}
+
+			console.log('enrolled classes after verify...')
 			const query = { studentEmail: studentEmail.email };
-			const enrolledResult = await enrolledClassesCollection.find(query).toArray();
+			const enrolledResult = await enrolledClassesCollection
+				.find(query)
+				.toArray();
 			res.send(enrolledResult);
 		})
 		// delete class form cart for student 
@@ -391,10 +465,24 @@ async function run() {
 		})
 
 		// user payment history 
-		app.get('/payment-history', async (req, res) => {
+		app.get('/payment-history', verifyJWT, async (req, res) => {
 			const studentEmail = req.query.email;
+
+			// check for forbidden access
+			const decodedEmail = req?.decoded?.email;
+			if (studentEmail !== decodedEmail) {
+				console.log("vaul val manus payment");
+				return res
+					.status(403)
+					.send({ error: true, message: "Forbidden Access" });
+			}
+
+			console.log('payment history after verify ...')
 			const query = { email: studentEmail };
-			const paymentResult = await paymentCollection.find(query).sort({ date: -1 }).toArray();
+			const paymentResult = await paymentCollection
+				.find(query)
+				.sort({ date: -1 })
+				.toArray();
 			res.send(paymentResult);
 		})
 
