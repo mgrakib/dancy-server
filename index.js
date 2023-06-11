@@ -87,7 +87,7 @@ async function run() {
 			const email = req.decoded.email;
 			const query = { email: email };
 			const user = await userCollection.findOne(query);
-			if (user?.role !== '') {
+			if (user?.role !== 'instractor') {
 				return res
 					.status(403)
 					.send({ error: true, message: "Forbidden Access" });
@@ -321,7 +321,7 @@ async function run() {
 
 		// ********** INSTRUCTORS API *************
 		// get all  Class for instructor dashboard
-		app.get("/instructor-classes", verifyJWT, async (req, res) => {
+		app.get("/instructor-classes", verifyJWT, verifyInstructor, async (req, res) => {
 			const email = req.query.email;
 
 			// check for forbidden access
@@ -338,7 +338,7 @@ async function run() {
 		});
 
 		// add new class by instractor
-		app.post("/add-an-class", verifyJWT, async (req, res) => {
+		app.post("/add-an-class", verifyJWT, verifyInstructor, async (req, res) => {
 			const classInfo = req.body;
 			const result = await classCollection.insertOne(classInfo);
 			res.send(result);
