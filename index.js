@@ -87,7 +87,7 @@ async function run() {
 			const email = req.decoded.email;
 			const query = { email: email };
 			const user = await userCollection.findOne(query);
-			if (user?.role !== 'instractor') {
+			if (user?.role !== "instractor") {
 				return res
 					.status(403)
 					.send({ error: true, message: "Forbidden Access" });
