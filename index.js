@@ -65,24 +65,22 @@ async function run() {
 		const classCartCollection = client
 			.db("summerCamp")
 			.collection("classCart");
-		
-		const paymentCollection = client
-			.db("summerCamp")
-			.collection("payment");
+
+		const paymentCollection = client.db("summerCamp").collection("payment");
 		const enrolledClassesCollection = client
 			.db("summerCamp")
 			.collection("enrolledClasses");
 
+		// ********** COMMON API *************
 
-		
-		// JWT Access Token Genterate 
-		app.post('/jwt', async (req, res) => {
+		// JWT Access Token Genterate
+		app.post("/jwt", async (req, res) => {
 			const body = req.body;
-			const token = jwt.sign(body, process.env.JWT_ACCESS_TOKEN , {expiresIn: '1h'});
+			const token = jwt.sign(body, process.env.JWT_ACCESS_TOKEN, {
+				expiresIn: "1h",
+			});
 			res.send({ token });
-		})
-
-		
+		});
 
 		// get user role
 		app.get("/user-role", async (req, res) => {
@@ -100,12 +98,7 @@ async function run() {
 			res.send({});
 		});
 
-		// get all user
-		app.get("/get-all-user", async (req, res) => {
-			const result = await userCollection.find().toArray();
-			res.send(result);
-		});
-		// store new user
+		// store new user when user create accoutn
 		app.post("/users", async (req, res) => {
 			const saveUser = req.body;
 			const query = { email: saveUser.email };
@@ -117,8 +110,68 @@ async function run() {
 			res.send(result);
 		});
 
+		// get classes for user just approved
+		app.get("/approverd-classes", async (req, res) => {
+			const numberOfData = req?.query?.numberOfData;
+			const sortValue = req?.query?.sort;
+			const query = { status: { $eq: "approved" } };
+			if (numberOfData !== "undefined" && sortValue !== "undefined") {
+				const resutl = await classCollection
+					.find(query)
+					.limit(parseInt(numberOfData))
+					.sort({ totalStudent: sortValue })
+					.toArray();
+				return res.send(resutl);
+			}
+
+			const resutl = await classCollection.find(query).toArray();
+
+			res.send(resutl);
+		});
+
+		// get instructor
+		app.get("/instructor", async (req, res) => {
+			const numberOfData = req?.query?.numberOfData;
+			const sortValue = req?.query?.sort;
+
+			if (numberOfData !== "undefined" && sortValue !== "undefined") {
+				const resutl = await instructorCollection
+					.find()
+					.limit(parseInt(numberOfData))
+					.sort({ totalEnrolledStudent: sortValue })
+					.toArray();
+				return res.send(resutl);
+			}
+
+			const result = await instructorCollection.find().toArray();
+			res.send(result);
+		});
+
+		// create payment intent
+		app.post("/create-payment-intent", async (req, res) => {
+			const { price } = req.body;
+
+			const amount = parseInt(price * 100);
+			const paymentIntent = await stripe.paymentIntents.create({
+				amount: amount,
+				currency: "usd",
+				payment_method_types: ["card"],
+			});
+
+			res.send({
+				clientSecret: paymentIntent.client_secret,
+			});
+		});
+
+		// ********** ADMIN API *************
+		// get all user for admin
+		app.get("/get-all-user", verifyJWT, async (req, res) => {
+			const result = await userCollection.find().toArray();
+			res.send(result);
+		});
+
 		// update user role
-		app.put("/update-user-role", async (req, res) => {
+		app.put("/update-user-role", verifyJWT, async (req, res) => {
 			const user = req.body;
 
 			const filter = { email: user?.email };
@@ -138,62 +191,31 @@ async function run() {
 			res.send(result);
 		});
 
-		// get classes for user
-		app.get("/approverd-classes", async (req, res) => {
-			const numberOfData = req?.query?.numberOfData;
-			const sortValue = req?.query?.sort;
-			const query = { status: { $eq: "approved" } };
-			if (numberOfData !== "undefined" && sortValue !== "undefined") {
-				
-				const resutl = await classCollection
-					.find(query)
-					.limit(parseInt(numberOfData))
-					.sort({ totalStudent: sortValue })
-					.toArray();
-				return res.send(resutl);
-			}
-			
-			const resutl = await classCollection.find(query).toArray();
-			
-			res.send(resutl);
+		// make user to instracto FRO AMDIN
+		app.post("/make-instructor/:email", verifyJWT, async (req, res) => {
+			const userEmail = req.params.email;
+			const query = { email: userEmail };
+			const user = await userCollection.findOne(query);
+			const { _id, email, userImg, name } = user;
+			const instructorInfo = {
+				userId: _id,
+				email,
+				userImg,
+				joiningDate: new Date(),
+				name,
+			};
+			const result = await instructorCollection.insertOne(instructorInfo);
+			res.send(result);
 		});
 
-		// getclass for admin
-		app.get("/classes", async (req, res) => {
+		// get all classes approved or not class for admin
+		app.get("/classes", verifyJWT, async (req, res) => {
 			const result = await classCollection.find().toArray();
 			res.send(result);
 		});
 
-		// get Class for instructor
-		app.get("/instructor-classes", verifyJWT, async (req, res) => {
-			const email = req.query.email;
-
-
-			// check for forbidden access 
-			const decodedEmail = req?.decoded?.email;
-			if (email !== decodedEmail) {
-				console.log('vaul val manus instructor class')
-				return res.status(403).send({error: true, message: 'Forbidden Access'})
-			}
-
-			console.log('instructor class ')
-
-			const query = { instructorEmail: email };
-			const cursor = await classCollection.find(query).toArray();
-			res.send(cursor);
-		});
-
-
-
-		// add new class by instractor
-		app.post("/add-an-class", async (req, res) => {
-			const classInfo = req.body;
-			const result = await classCollection.insertOne(classInfo);
-			res.send(result);
-		});
-
 		// update Class status by admibn
-		app.put("/update-class-status", async (req, res) => {
+		app.put("/update-class-status", verifyJWT, async (req, res) => {
 			const body = req.body;
 			const id = req?.body?.id;
 			const feedBack = req?.body?.feedBack;
@@ -216,6 +238,77 @@ async function run() {
 			res.send({});
 		});
 
+		// update instractor info
+		app.put("/update-instructor-info", async (req, res) => {
+			const body = req.body;
+			const instractorEmail = body?.email;
+			const className = body?.name;
+			const filter = { email: instractorEmail };
+			const options = { upsert: true };
+			const instractor = await instructorCollection.findOne({
+				email: instractorEmail,
+			});
+			const previousClasss = instractor?.className;
+
+			let updateDoc;
+			if (previousClasss) {
+				updateDoc = {
+					$set: {
+						className: [className, ...previousClasss],
+					},
+				};
+			} else {
+				updateDoc = {
+					$set: {
+						className: [className],
+					},
+				};
+			}
+
+			const result = await instructorCollection.updateOne(
+				filter,
+				updateDoc,
+				options
+			);
+
+			res.send(result);
+		});
+
+		
+		// ********** INSTRUCTORS API *************
+		// get all  Class for instructor dashboard
+		app.get("/instructor-classes", verifyJWT, async (req, res) => {
+			const email = req.query.email;
+
+			// check for forbidden access
+			const decodedEmail = req?.decoded?.email;
+			if (email !== decodedEmail) {
+				return res
+					.status(403)
+					.send({ error: true, message: "Forbidden Access" });
+			}
+
+			const query = { instructorEmail: email };
+			const cursor = await classCollection.find(query).toArray();
+			res.send(cursor);
+		});
+
+		// add new class by instractor
+		app.post("/add-an-class", verifyJWT, async (req, res) => {
+			const classInfo = req.body;
+			const result = await classCollection.insertOne(classInfo);
+			res.send(result);
+		});
+
+		// ********** STUDENTS API *************
+		// get instractor class for users
+		app.get("/get-instructor-classes/:email", async (req, res) => {
+			const email = req.params.email;
+			const query = { instructorEmail: email, status: "approved" };
+			const result = await classCollection.find(query).toArray();
+			res.send(result);
+		});
+
 		//  add to cart class for user
 		app.post("/class-add-to-cart", async (req, res) => {
 			const cartClass = req.body;
@@ -234,8 +327,6 @@ async function run() {
 			res.send(result);
 		});
 
-
-
 		// get all cart class by login user
 		app.get("/cart-classes", verifyJWT, async (req, res) => {
 			const email = req.query.email;
@@ -243,159 +334,64 @@ async function run() {
 			// check for forbidden access
 			const decodedEmail = req?.decoded?.email;
 			if (email !== decodedEmail) {
-				console.log("vaul val manus cart class");
 				return res
 					.status(403)
 					.send({ error: true, message: "Forbidden Access" });
 			}
-
-			console.log("cart classes after veryfy ..")
 			const query = { studentEmail: email };
 			const result = await classCartCollection.find(query).toArray();
 			res.send(result);
 		});
 
-		// get student enrollment classes 
-		app.get('/enrolled-classes', verifyJWT, async (req, res) => {
+		// get student enrollment classes
+		app.get("/enrolled-classes", verifyJWT, async (req, res) => {
 			const studentEmail = req.query;
 
 			// check for forbidden access
 			const decodedEmail = req?.decoded?.email;
 			if (studentEmail.email !== decodedEmail) {
-				console.log("vaul val manus enrolled classs");
 				return res
 					.status(403)
 					.send({ error: true, message: "Forbidden Access" });
 			}
 
-			console.log('enrolled classes after verify...')
 			const query = { studentEmail: studentEmail.email };
 			const enrolledResult = await enrolledClassesCollection
 				.find(query)
 				.toArray();
 			res.send(enrolledResult);
-		})
-		// delete class form cart for student 
-		app.delete("/delete-cart-class/:id", async (req, res) => {
+		});
+
+		// delete class form cart for student
+		app.delete("/delete-cart-class/:id", verifyJWT, async (req, res) => {
 			const id = req.params.id;
 			const query = { _id: new ObjectId(id) };
 			const result = await classCartCollection.deleteOne(query);
 			res.send(result);
 		});
 
-
-		// make user to instracto 
-		app.post('/make-instructor/:email', async (req, res) => {
-			const userEmail = req.params.email;
-			const query = { email: userEmail };
-			const user = await userCollection.findOne(query);
-			const { _id, email, userImg, name} = user;
-			const instructorInfo = {
-				userId: _id,
-				email,
-				userImg,
-				joiningDate: new Date(),
-				name
-			};
-			const result = await instructorCollection.insertOne(instructorInfo);
-			res.send(result);
-		})
-
-		// update instractor info 
-		app.put('/update-instructor-info', async (req, res) => {
-			const body = req.body;
-			const instractorEmail = body?.email;
-			const className = body?.name;
-			const filter = { email: instractorEmail };
-			const options = { upsert: true };
-			const instractor = await instructorCollection.findOne({ email: instractorEmail });
-			const previousClasss = instractor?.className;
-
-
-			let updateDoc;
-			if (previousClasss) {
-				updateDoc = {
-					$set: {
-						className: [className, ...previousClasss],
-					},
-				};
-			} else {
-				updateDoc = {
-					$set: {
-						className: [className],
-					},
-				};
-			}
-
-			const result = await instructorCollection.updateOne(filter, updateDoc, options);
-		
-			res.send(result);
-		})
-
-		// get instructor
-		app.get("/instructor", async (req, res) => {
-			const numberOfData = req?.query?.numberOfData;
-			const sortValue = req?.query?.sort;
-
-			if (numberOfData !== "undefined" && sortValue !== "undefined") {
-				const resutl = await instructorCollection
-					.find()
-					.limit(parseInt(numberOfData))
-					.sort({ totalEnrolledStudent: sortValue })
-					.toArray();
-				return res.send(resutl);
-			}
-
-			const result = await instructorCollection.find().toArray();
-			res.send(result);
-		});
-
-		// get instractor class 
-		app.get('/get-instructor-classes/:email', async (req, res) => {
-			const email = req.params.email;
-			const query = { instructorEmail: email, status: "approved" };
-			const result = await classCollection.find(query).toArray();
-			res.send(result);
-		})
-
-
-
-		// create payment intent
-		app.post("/create-payment-intent",  async (req, res) => {
-			const { price } = req.body;
-			
-			const amount = parseInt(price * 100);
-			const paymentIntent = await stripe.paymentIntents.create({
-				amount: amount,
-				currency: "usd",
-				payment_method_types: ["card"],
-			});
-
-			res.send({
-				clientSecret: paymentIntent.client_secret,
-			});
-		});
-
-
-		// payment with update instractor , update student 
-		app.post('/payments', async (req, res) => {
-
+		// payment with update instractor , update student
+		app.post("/payments", verifyJWT, async (req, res) => {
 			// payment data set to DB
 			const payment = req.body;
 			const paymentResult = await paymentCollection.insertOne(payment);
 
-			
-
-			// DELETE from class cart collection 
+			// DELETE from class cart collection
 			const query = { _id: new ObjectId(payment.cartClassesId) };
 			const deleteResult = await classCartCollection.deleteMany(query);
 
-			// update to class collections available sets and totalStudent 
+			// update to class collections available sets and totalStudent
 			const filterForCLasses = {
 				_id: new ObjectId(payment.classId),
 			};
-			const getClassesData = await classCollection.findOne(filterForCLasses);
-			const { totalStudent, _id:classId, availableSeats } = getClassesData;
+			const getClassesData = await classCollection.findOne(
+				filterForCLasses
+			);
+			const {
+				totalStudent,
+				_id: classId,
+				availableSeats,
+			} = getClassesData;
 
 			const updateResultClasses = await classCollection.updateOne(
 				{ _id: classId },
@@ -414,13 +410,16 @@ async function run() {
 			const getInstractorData = await instructorCollection.findOne(
 				filterForInstractor
 			);
-			const {_id:instructorId, totalEnrolledStudent } = getInstractorData;
+			const { _id: instructorId, totalEnrolledStudent } =
+				getInstractorData;
 
 			const updateResultInstractor = await instructorCollection.updateOne(
 				{ _id: instructorId },
 				{
 					$set: {
-						totalEnrolledStudent: totalEnrolledStudent ? totalEnrolledStudent + 1 : 1 ,
+						totalEnrolledStudent: totalEnrolledStudent
+							? totalEnrolledStudent + 1
+							: 1,
 					},
 				}
 			);
@@ -432,60 +431,57 @@ async function run() {
 				updatedClassFilter
 			);
 
-
-			// set enrollment collection 
+			// set enrollment collection
 			const {
 				classId: _id,
 				name,
 				instructorEmail,
 				instructorName,
-				totalStudent:updatedTotalStudent,
+				totalStudent: updatedTotalStudent,
 				price,
 				img,
 			} = updateClass;
-			
+
 			const enrolledClassInfo = {
 				studentEmail: payment.email,
 				classId,
 				name,
 				instructorEmail,
 				instructorName,
-				totalStudent:updatedTotalStudent,
+				totalStudent: updatedTotalStudent,
 				price,
 				img,
 			};
-			
-			const enrolledClasssResult = await enrolledClassesCollection.insertOne(enrolledClassInfo)
-			
+
+			const enrolledClasssResult =
+				await enrolledClassesCollection.insertOne(enrolledClassInfo);
+
 			res.send({
 				updateResultClasses,
 				updateResultInstractor,
 				enrolledClasssResult,
 			});
-		})
+		});
 
-		// user payment history 
-		app.get('/payment-history', verifyJWT, async (req, res) => {
+		// user payment history
+		app.get("/payment-history", verifyJWT, async (req, res) => {
 			const studentEmail = req.query.email;
 
 			// check for forbidden access
 			const decodedEmail = req?.decoded?.email;
 			if (studentEmail !== decodedEmail) {
-				console.log("vaul val manus payment");
 				return res
 					.status(403)
 					.send({ error: true, message: "Forbidden Access" });
 			}
 
-			console.log('payment history after verify ...')
 			const query = { email: studentEmail };
 			const paymentResult = await paymentCollection
 				.find(query)
 				.sort({ date: -1 })
 				.toArray();
 			res.send(paymentResult);
-		})
-
+		});
 
 		// Send a ping to confirm a successful connection
 		await client.db("admin").command({ ping: 1 });
