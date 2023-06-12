@@ -18,19 +18,17 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
 	const authorization = req.headers.authorization;
 	if (!authorization) {
-		console.log('authorization is invalid')
+		
 		return res
 			.status(401)
 			.send({ error: true, message: " Unauthorized Access"});
 	}
 
-	console.log(authorization, ' if authorization has');
 	const token = authorization.split(' ')[1];
-	console.log(token, ' if authorization has');
 
 	jwt.verify(token, process.env.JWT_ACCESS_TOKEN, (error, decoded) => {
 		if (error) {
-			console.log(token, ' is not valid')
+			
 			return res.status(401).send({error:true, message:'Unauthorized Access'})
 		}
 		req.decoded = decoded;
